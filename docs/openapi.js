@@ -1,0 +1,45 @@
+module.exports = {
+  openapi: '3.0.3',
+  info: {
+    title: 'FundDreams API',
+    version: '1.1.0',
+    description: 'Crowdfunding backend API for campaigns, pledges, tiers, updates, payouts, notifications, JWT authentication and Firebase Authentication.'
+  },
+  servers: [{ url: 'http://localhost:5001', description: 'Local development' }],
+  tags: [
+    { name: 'Health' }, { name: 'Auth' }, { name: 'Campaigns' }, { name: 'Tiers' },
+    { name: 'Pledges' }, { name: 'Updates' }, { name: 'Payouts' }, { name: 'Admin' }, { name: 'Notifications' }
+  ],
+  components: {
+    securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } },
+    schemas: {
+      User: { type: 'object', properties: { _id: { type: 'string' }, name: { type: 'string' }, email: { type: 'string' }, role: { type: 'string', enum: ['backer','creator','admin'] }, authProvider: { type: 'string', enum: ['local','firebase'] }, kycStatus: { type: 'string' } } },
+      Campaign: { type: 'object', properties: { _id: { type: 'string' }, title: { type: 'string' }, description: { type: 'string' }, goalAmount: { type: 'number' }, raisedAmount: { type: 'number' }, backersCount: { type: 'number' }, deadline: { type: 'string', format: 'date-time' }, videoUrl: { type: 'string' }, verificationStatus: { type: 'string' } } },
+      Tier: { type: 'object', properties: { _id: { type: 'string' }, campaign: { type: 'string' }, title: { type: 'string' }, reward: { type: 'string' }, amount: { type: 'number' }, limit: { type: 'number' }, claimed: { type: 'number' } } },
+      Pledge: { type: 'object', properties: { _id: { type: 'string' }, campaign: { type: 'string' }, tier: { type: 'string' }, amount: { type: 'number' } } },
+      Update: { type: 'object', properties: { _id: { type: 'string' }, campaign: { type: 'string' }, title: { type: 'string' }, content: { type: 'string' } } }
+    }
+  },
+  paths: {
+    '/api/health': { get: { tags: ['Health'], summary: 'Health check', responses: { 200: { description: 'API is healthy' } } } },
+    '/api/auth/register': { post: { tags: ['Auth'], summary: 'Register local user', requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['name','email','password'], properties: { name:{type:'string'}, email:{type:'string'}, password:{type:'string'}, role:{type:'string', enum:['backer','creator']} } } } } }, responses: { 201:{description:'Created'} } } },
+    '/api/auth/login': { post: { tags:['Auth'], summary:'Login with email/password', requestBody:{required:true,content:{'application/json':{schema:{type:'object',required:['email','password'],properties:{email:{type:'string'},password:{type:'string'}}}}}},responses:{200:{description:'JWT returned'}} } },
+    '/api/auth/firebase': { post: { tags:['Auth'], summary:'Authenticate with Firebase ID token and receive FundDreams JWT', requestBody:{required:true,content:{'application/json':{schema:{type:'object',required:['idToken'],properties:{idToken:{type:'string'},role:{type:'string',enum:['backer','creator']}}}}}},responses:{200:{description:'JWT returned'},503:{description:'Firebase Auth not configured'}} } },
+    '/api/auth/me': { get:{tags:['Auth'],summary:'Get current user',security:[{bearerAuth:[]}],responses:{200:{description:'Current user'}}} },
+    '/api/auth/fcm-token': { put:{tags:['Auth'],summary:'Register Firebase Cloud Messaging device token',security:[{bearerAuth:[]}],requestBody:{required:true,content:{'application/json':{schema:{type:'object',required:['token'],properties:{token:{type:'string'}}}}}},responses:{200:{description:'Token saved'}}} },
+    '/api/campaigns': { get:{tags:['Campaigns'],summary:'List verified campaigns',parameters:[{name:'category',in:'query',schema:{type:'string'}},{name:'q',in:'query',schema:{type:'string'}}],responses:{200:{description:'Campaign list'}}}, post:{tags:['Campaigns'],summary:'Create campaign',security:[{bearerAuth:[]}],responses:{201:{description:'Created'}}} },
+    '/api/campaigns/{id}': { get:{tags:['Campaigns'],summary:'Get campaign',parameters:[{name:'id',in:'path',required:true,schema:{type:'string'}}],responses:{200:{description:'Campaign'}}}, put:{tags:['Campaigns'],summary:'Update campaign',security:[{bearerAuth:[]}],parameters:[{name:'id',in:'path',required:true,schema:{type:'string'}}],responses:{200:{description:'Updated'}}}, delete:{tags:['Campaigns'],summary:'Delete campaign',security:[{bearerAuth:[]}],parameters:[{name:'id',in:'path',required:true,schema:{type:'string'}}],responses:{200:{description:'Deleted'}}} },
+    '/api/tiers': { get:{tags:['Tiers'],summary:'List tiers',responses:{200:{description:'Tier list'}}}, post:{tags:['Tiers'],summary:'Create tier',security:[{bearerAuth:[]}],responses:{201:{description:'Created'}}} },
+    '/api/tiers/{id}': { get:{tags:['Tiers'],summary:'Get tier',parameters:[{name:'id',in:'path',required:true,schema:{type:'string'}}],responses:{200:{description:'Tier'}}}, put:{tags:['Tiers'],summary:'Update tier',security:[{bearerAuth:[]}],parameters:[{name:'id',in:'path',required:true,schema:{type:'string'}}],responses:{200:{description:'Updated'}}}, delete:{tags:['Tiers'],summary:'Delete tier',security:[{bearerAuth:[]}],parameters:[{name:'id',in:'path',required:true,schema:{type:'string'}}],responses:{200:{description:'Deleted'}}} },
+    '/api/pledges': { post:{tags:['Pledges'],summary:'Create pledge',security:[{bearerAuth:[]}],responses:{201:{description:'Created'}}}, get:{tags:['Pledges'],summary:'List current user pledges',security:[{bearerAuth:[]}],responses:{200:{description:'Pledges'}}} },
+    '/api/pledges/campaign/{id}': { get:{tags:['Pledges'],summary:'List campaign pledges',security:[{bearerAuth:[]}],parameters:[{name:'id',in:'path',required:true,schema:{type:'string'}}],responses:{200:{description:'Pledges'}}} },
+    '/api/updates': { post:{tags:['Updates'],summary:'Create campaign update',security:[{bearerAuth:[]}],responses:{201:{description:'Created'}}}, get:{tags:['Updates'],summary:'List updates',responses:{200:{description:'Updates'}}} },
+    '/api/updates/campaign/{id}': { get:{tags:['Updates'],summary:'List updates for campaign',parameters:[{name:'id',in:'path',required:true,schema:{type:'string'}}],responses:{200:{description:'Updates'}}} },
+    '/api/payouts': { post:{tags:['Payouts'],summary:'Create payout',security:[{bearerAuth:[]}],requestBody:{required:true,content:{'application/json':{schema:{type:'object',required:['campaign'],properties:{campaign:{type:'string',description:'MongoDB Campaign ID',example:'68f7a21c9d4e8b1234567890'}}}}}},responses:{201:{description:'Created'}}}, get:{tags:['Payouts'],summary:'List payouts',security:[{bearerAuth:[]}],responses:{200:{description:'Payouts'}}} },
+    '/api/payouts/campaign/{id}': { get:{tags:['Payouts'],summary:'Get campaign payouts',security:[{bearerAuth:[]}],parameters:[{name:'id',in:'path',required:true,schema:{type:'string'}}],responses:{200:{description:'Payouts'}}} },
+    '/api/admin/campaigns': { get:{tags:['Admin'],summary:'List campaigns for verification',security:[{bearerAuth:[]}],responses:{200:{description:'Campaigns'}}} },
+    '/api/admin/verify/{id}': { put:{tags:['Admin'],summary:'Verify or reject campaign',security:[{bearerAuth:[]}],parameters:[{name:'id',in:'path',required:true,schema:{type:'string'}}],responses:{200:{description:'Verification updated'}}} },
+    '/api/notifications/send': {post:{tags:['Notifications'],summary:'Send campaign notification',security:[{bearerAuth:[]}],requestBody:{required:true,content:{'application/json':{schema:{type:'object',required:['campaign','title','body'],properties:{campaign:{type:'string',description:'MongoDB Campaign ID',example:'68f7a21c9d4e8b1234567890'},title:{type:'string',description:'Notification title',example:'Campaign Update'},body:{type:'string',description:'Notification message',example:'Your campaign has received a new update!'}}}}}},responses:{201:{description:'Notification sent'}}}},
+    '/api/notifications': { get:{tags:['Notifications'],summary:'Get current user notifications',security:[{bearerAuth:[]}],responses:{200:{description:'Notifications'}}} }
+  }
+};
